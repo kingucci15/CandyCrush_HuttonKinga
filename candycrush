@@ -1,0 +1,132 @@
+import random
+from statistics import mean
+
+N = 11  # Dimensiunea matricei
+
+
+def init_tabla():
+    """Initializeaza tabla de joc cu bomboane de culori aleatorii."""
+    return [[random.randint(1, 4) for _ in range(N)] for _ in range(N)]
+
+
+def detecteaza_formatii(tabla):
+    """Detecteaza formatiunile de bomboane si returnează pozitiile de eliminat si punctajul."""
+    pozitii_de_eliminat = set()
+    punctaj = 0
+
+    for i in range(N):
+        for j in range(N):
+            culoare = tabla[i][j]
+            if culoare == 0:
+                continue
+
+            # Linie de 3, 4, 5 pe oriz
+            if j <= N - 3 and tabla[i][j] == tabla[i][j + 1] == tabla[i][j + 2]:
+                pozitii_de_eliminat.update({(i, j), (i, j + 1), (i, j + 2)})
+                punctaj += 5
+                if j <= N - 4 and tabla[i][j] == tabla[i][j + 3]:
+                    pozitii_de_eliminat.add((i, j + 3))
+                    punctaj += 10
+                    if j <= N - 5 and tabla[i][j] == tabla[i][j + 4]:
+                        pozitii_de_eliminat.add((i, j + 4))
+                        punctaj += 50
+
+            # Linie de 3, 4, 5 pe vert
+            if i <= N - 3 and tabla[i][j] == tabla[i + 1][j] == tabla[i + 2][j]:
+                pozitii_de_eliminat.update({(i, j), (i + 1, j), (i + 2, j)})
+                punctaj += 5
+                if i <= N - 4 and tabla[i][j] == tabla[i + 3][j]:
+                    pozitii_de_eliminat.add((i + 3, j))
+                    punctaj += 10
+                    if i <= N - 5 and tabla[i][j] == tabla[i + 4][j]:
+                        pozitii_de_eliminat.add((i + 4, j))
+                        punctaj += 50
+
+            # Forma L (3x2)
+            if i <= N - 3 and j <= N - 2:
+                if (tabla[i][j] == tabla[i + 1][j] == tabla[i + 2][j] == tabla[i][j + 1]):
+                    pozitii_de_eliminat.update({(i, j), (i + 1, j), (i + 2, j), (i, j + 1)})
+                    punctaj += 20
+
+            # Formă T (3x3)
+            if i <= N - 3 and j >= 1 and j <= N - 2:
+                if (tabla[i][j] == tabla[i + 1][j] == tabla[i + 2][j] == tabla[i ][j - 1] == tabla[i][j + 1]):
+                    pozitii_de_eliminat.update({(i, j), (i + 1, j), (i + 2, j), (i , j - 1), (i, j + 1)})
+                    punctaj += 30
+
+    return pozitii_de_eliminat, punctaj
+
+
+def elimina_bomboane(tabla, pozitii):
+    """Elimina bomboanele din pozitiile specificate si face bomboanele de deasupra sa cada."""
+    for i, j in pozitii:
+        tabla[i][j] = 0
+
+    # Permite bomboanelor sa cada
+    for j in range(N):
+        stack = [tabla[i][j] for i in range(N) if tabla[i][j] != 0]
+        for i in range(N - len(stack)):
+            tabla[i][j] = 0
+        for i in range(N - len(stack), N):
+            tabla[i][j] = stack.pop(0)
+
+
+def incearca_interschimbari(tabla):
+    """Incearca toate interschimbarile posibile pentru a vedea daca se formeaza noi formatiuni."""
+    for i in range(N):
+        for j in range(N - 1):
+            # Interschimba pe orizontala
+            tabla[i][j], tabla[i][j + 1] = tabla[i][j + 1], tabla[i][j]
+            if detecteaza_formatii(tabla)[0]:
+                return True
+            tabla[i][j], tabla[i][j + 1] = tabla[i][j + 1], tabla[i][j]
+
+            # Interschimba pe verticala
+            if i < N - 1:
+                tabla[i][j], tabla[i + 1][j] = tabla[i + 1][j], tabla[i][j]
+                if detecteaza_formatii(tabla)[0]:
+                    return True
+                tabla[i][j], tabla[i + 1][j] = tabla[i + 1][j], tabla[i][j]
+
+    return False
+
+
+def proceseaza_joc():
+    """Proceseaza un joc pana cand nu mai sunt formatiuni posibile sau se atinge un scor de 10.000."""
+    tabla = init_tabla()
+    total_score = 0
+    interschimbari = 0
+
+    while True:
+        pozitii_de_eliminat, punctaj = detecteaza_formatii(tabla)
+        if pozitii_de_eliminat:
+            elimina_bomboane(tabla, pozitii_de_eliminat)
+            total_score += punctaj
+        else:
+            # Daca nu mai sunt formatiuni, incearca sa faca o interschimbare
+            if incearca_interschimbari(tabla):
+                interschimbari += 1
+            else:
+                break  # Nu mai sunt formatiuni noi posibile si nicio interschimbare nu ajuta
+
+        if total_score >= 10000:
+            break
+
+    return total_score, interschimbari
+
+
+# Simuleaza 100 de jocuri si calculeaza media scorului si a interschimbarilor
+numar_jocuri = 100
+scoruri = []
+interschimbari_list = []
+
+for _ in range(numar_jocuri):
+    scor, interschimbari = proceseaza_joc()
+    scoruri.append(scor)
+    interschimbari_list.append(interschimbari)
+
+media_scor = mean(scoruri)
+media_interschimbari = mean(interschimbari_list)
+
+print(f"Media scorului din {numar_jocuri} jocuri: {media_scor:.2f}")
+print(f"Media numărului de interschimbări: {media_interschimbari:.2f}")
